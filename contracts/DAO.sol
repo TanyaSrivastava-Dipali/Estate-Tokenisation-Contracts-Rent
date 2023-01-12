@@ -5,7 +5,6 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/TimersUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/cryptography/MerkleProofUpgradeable.sol";
 import "./interfaces/IMaintenanceReserve.sol";
 import "./interfaces/IVacancyReserve.sol";
 
@@ -45,7 +44,6 @@ contract DAO is OwnableUpgradeable, UUPSUpgradeable {
         uint256 tokenId;
         uint256 amount;
         ReserveContracts withdrawFundsFrom;
-        bytes32 votersRootHash;
         string proposalProof;
     }
     ///@dev Describing voting for a proposal
@@ -185,13 +183,11 @@ contract DAO is OwnableUpgradeable, UUPSUpgradeable {
     ///@param _withdrawFundsFrom mention the contract from which proposers wants to withdraw funds
     ///@notice _withdrawFundsFrom -> 0 ->  withdraw from MaintenanceReserve, _withdrawFundsFrom -> 1 ->  withdraw from VacancyReserve
     ///@param _proposalProof Any external link for proposal proof
-    ///@param _votersRootHash property owners root hash at the time of proposal creation.
     function propose(
         uint256 _tokenId,
         uint256 _amount,
         ReserveContracts _withdrawFundsFrom,
-        string calldata _proposalProof,
-        bytes32 _votersRootHash
+        string calldata _proposalProof
     ) external {
         require(
             msg.sender == propertyManager,
@@ -202,15 +198,12 @@ contract DAO is OwnableUpgradeable, UUPSUpgradeable {
             bytes(_proposalProof).length != 0,
             "proposalProof cannot be empty"
         );
-        require(_votersRootHash != bytes32(0), "Root hash cannot be empty");
         proposals[_tokenId][proposalCounter[_tokenId]].tokenId = _tokenId;
         proposals[_tokenId][proposalCounter[_tokenId]].amount = _amount;
         proposals[_tokenId][proposalCounter[_tokenId]]
             .withdrawFundsFrom = _withdrawFundsFrom;
         proposals[_tokenId][proposalCounter[_tokenId]]
             .proposalProof = _proposalProof;
-        proposals[_tokenId][proposalCounter[_tokenId]]
-            .votersRootHash = _votersRootHash;
         uint64 start = block.number.toUint64() + votingDelay.toUint64();
         uint64 deadline = start + votingPeriod.toUint64();
         proposals[_tokenId][proposalCounter[_tokenId]].voteStart.setDeadline(
@@ -237,14 +230,12 @@ contract DAO is OwnableUpgradeable, UUPSUpgradeable {
     ///@param _tokenId updated tokenId
     ///@param _amount updated amount
     ///@param _proposalProof updated  proposal proof
-    ///@param _votersRootHash  updated voter root hash
     function editProposal(
         uint256 _proposalId,
         uint256 _tokenId,
         uint256 _amount,
         ReserveContracts _withdrawFundsFrom,
-        string calldata _proposalProof,
-        bytes32 _votersRootHash
+        string calldata _proposalProof
     ) external {
         require(
             msg.sender == propertyManager,
@@ -259,16 +250,12 @@ contract DAO is OwnableUpgradeable, UUPSUpgradeable {
             bytes(_proposalProof).length != 0,
             "proposalProof cannot be empty"
         );
-        require(_votersRootHash != bytes32(0), "Root hash cannot be empty");
-
         Proposal storage proposal = proposals[_tokenId][_proposalId];
 
         proposal.tokenId = _tokenId;
         proposal.amount = _amount;
         proposal.withdrawFundsFrom = _withdrawFundsFrom;
         proposal.proposalProof = _proposalProof;
-        proposal.votersRootHash = _votersRootHash;
-
         //emit the event
         emit proposalEdited(proposalCounter[_tokenId], _tokenId);
     }
@@ -276,21 +263,11 @@ contract DAO is OwnableUpgradeable, UUPSUpgradeable {
     ///@dev voters (owners of the property) can call this function to vote for a certain proposal
     ///@param _proposalId Id Representing the proposal
     ///@param _vote 0 -> Against , 1-> For, 2 -> Abstain
-    ///@param _voterMerkleProof Merkle proof for voter (owner of the property)
     function vote(
         uint256 _tokenId,
         uint256 _proposalId,
-        uint8 _vote,
-        bytes32[] memory _voterMerkleProof
+        uint8 _vote
     ) external {
-        require(
-            MerkleProofUpgradeable.verify(
-                _voterMerkleProof,
-                proposals[_tokenId][_proposalId].votersRootHash,
-                keccak256(abi.encodePacked(msg.sender))
-            ),
-            "Invalid proof .Voter is not whitelisted"
-        );
         require(
             getProposalState(_tokenId, _proposalId) == ProposalState.Active,
             "Voting is not active"
