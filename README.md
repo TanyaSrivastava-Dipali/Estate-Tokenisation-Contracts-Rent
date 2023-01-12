@@ -220,7 +220,7 @@ npx hardhat test
 - Mumbai network
 
 ```
-0x51662e747b2F523c43f6c0E043dC0044869071f7
+0xD0B8ABc0612aCA7D33289d030a017FA1B66590b1
 ```
 
 # Maintenance Reserve
