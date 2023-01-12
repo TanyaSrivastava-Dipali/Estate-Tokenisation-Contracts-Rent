@@ -58,8 +58,8 @@ contract DAO is OwnableUpgradeable, UUPSUpgradeable {
 
     ///@dev Event to notify a proposal creation.
     event proposalInitiated(
-        uint256 proposalId,
-        uint256 tokenId,
+        uint256 indexed proposalId,
+        uint256 indexed tokenId,
         ReserveContracts withdrawFundsFrom,
         uint256 presentBlockNumber,
         uint256 votingWillStartAt,
